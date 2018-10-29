@@ -4,20 +4,23 @@ const PluginProxy = require('.').PluginProxy
 const IlpGrpc = require('ilp-grpc').default
 const CONNECTOR_URL = '127.0.0.1'
 
-const server = new BtpPlugin({
+const pluginServer = new BtpPlugin({
   listener: {
     port: 9000,
     secret: 'secret'
   }
 })
 
-server.registerDataHandler((data => console.log('on server', data)))
+pluginServer.registerDataHandler((data => console.log('on server', data)))
 
 const grpcServer = new IlpGrpc({
   listener: {
     port: '1260'
   },
-  dataHandler: (data) => console.log('on grpc', data)
+  dataHandler: (data) => console.log('on grpc', data),
+  addAccountHandler: (id, info) => {
+    console.log(id, info)
+  },
 })
 
 
@@ -33,20 +36,26 @@ async function run () {
   const proxy = new PluginProxy({
     connector: {
       address: CONNECTOR_URL,
-      port: 1260,
-      account: 'test'
+      port: 1260
+    },
+    accountId: 'matt',
+    account: {
+      relation: 'peer',
+      assetCode: 'xrp',
+      assetScale: 9,
+      plugin: ''
     }
   }, plugin)
 
 
   //Connecting server and proxy
   await Promise.all([
-    server.connect(),
+    pluginServer.connect(),
     proxy.connect()
   ])
 
 
-  const response = await server.sendData(IlpPacket.serializeIlpPrepare({
+  const response = await pluginServer.sendData(IlpPacket.serializeIlpPrepare({
     amount: '10',
     expiresAt: new Date(),
     executionCondition: Buffer.alloc(32),
@@ -54,13 +63,13 @@ async function run () {
     data: Buffer.from('hello world')
   }))
 
-  await grpcServer.sendData(IlpPacket.serializeIlpPrepare({
-    amount: '10',
-    expiresAt: new Date(),
-    executionCondition: Buffer.alloc(32),
-    destination: 'peer.example',
-    data: Buffer.from('hello world')
-  }),'matt')
+  // await grpcServer.sendData(IlpPacket.serializeIlpPrepare({
+  //   amount: '10',
+  //   expiresAt: new Date(),
+  //   executionCondition: Buffer.alloc(32),
+  //   destination: 'peer.example',
+  //   data: Buffer.from('hello world')
+  // }),'matt')
 
   // await server.sendMoney(10)
   // await client.sendMoney(10)

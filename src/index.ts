@@ -15,6 +15,7 @@ export interface ConnectorInfo {
 
 export interface IlpPluginProxyOpts {
   connector: ConnectorInfo
+  accountId: string,
   account: AccountInfo
 }
 
@@ -24,11 +25,13 @@ export class PluginProxy {
   private _connectorAddress: string
   private _connectorPort: number
   private _client: any
+  private _accountId: string
   private _account: AccountInfo
 
   constructor (opt: IlpPluginProxyOpts, plugin: PluginV2) {
     this._plugin = plugin
     this._account = opt.account
+    this._accountId = opt.accountId
     this._connectorAddress = opt.connector.address
     this._connectorPort = opt.connector.port
 
@@ -36,35 +39,40 @@ export class PluginProxy {
 
   async connect (): Promise<void> {
 
-    // Connect to connector
-    // new grpc connection to the connector
-    this._client = new IlpGrpc({
-      server: this._connectorAddress + ':' + this._connectorPort,
-      accountId: 'matt',
-      dataHandler: this.handleConnectorData.bind(this)
-    })
-
-    // this._plugin.on('connect', () => this.handleConnectionChange(true))
-    // this._plugin.on('disconnect', () => this.handleConnectionChange(false))
-
     // Connect plugin to server
-    console.log('Establishing plugin Connection')
-    await this._plugin.connect()
-    console.log('Plugin connection established')
+    await this._connectPlugin()
 
-    await this._client.connect()
+    // Connect gRPC
+    await this._connectGrpc()
 
     // Setup Incoming Listeners
     this._registerDataHandler()
 
     // Register the account on the connector
-    // try {
-    //   await this._client.addAccount({
-    //     id: 'matt'
-    //   })
-    // } catch (error) {
-    //   console.log(error)
-    // }
+    try {
+      await this._client.addAccount({
+        id: this._accountId,
+        info: this._account
+      })
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  async _connectPlugin () {
+    console.log('Establishing plugin Connection')
+    await this._plugin.connect()
+    console.log('Plugin connection established')
+  }
+
+  async _connectGrpc () {
+    this._client = new IlpGrpc({
+      server: this._connectorAddress + ':' + this._connectorPort,
+      accountId: this._accountId,
+      dataHandler: this.handleConnectorData.bind(this)
+    })
+
+    await this._client.connect()
   }
 
   _registerDataHandler () {
