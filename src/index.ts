@@ -1,8 +1,6 @@
 import * as Debug from 'debug'
 import { PluginV2 } from 'ilp-compat-plugin' // Can this type be pulled from somewhere else?
 import { AccountInfo } from 'ilp-connector/src/types/accounts'
-import { type } from 'os'
-const IlpPacket = require('ilp-packet')
 import IlpGrpc from 'ilp-grpc'
 
 // const IlpPluginBtp: PluginV2 = AbstractBtpPlugin as any
