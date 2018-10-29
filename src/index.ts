@@ -1,106 +1,101 @@
 import * as Debug from 'debug'
-import { PluginV2, MoneyHandler } from 'ilp-compat-plugin'
-import { AbstractBtpPlugin, IlpPluginBtpConstructorOptions, BtpPacket } from 'ilp-plugin-btp';
+import { PluginV2 } from 'ilp-compat-plugin' // Can this type be pulled from somewhere else?
+import { AccountInfo } from 'ilp-connector/src/types/accounts'
+import { type } from 'os'
+const IlpPacket = require('ilp-packet')
+import IlpGrpc from 'ilp-grpc'
 
 // const IlpPluginBtp: PluginV2 = AbstractBtpPlugin as any
 const debug = Debug('ilp-pluginproxy')
 
-namespace BtpConstants {
-  export const TYPE_RESPONSE = 1
-  export const TYPE_ERROR = 2
-  export const TYPE_MESSAGE = 6
-  export const TYPE_TRANSFER = 7
-  export const MIME_APPLICATION_OCTET_STREAM = 0
-  export const MIME_TEXT_PLAIN_UTF8 = 1
-  export const MIME_APPLICATION_JSON = 2
+export interface ConnectorInfo {
+  port: number
+  address: string
+}
+
+export interface IlpPluginProxyOpts {
+  connector: ConnectorInfo
+  account: AccountInfo
 }
 
 export class PluginProxy {
 
-  // Constructor
   private _plugin: PluginV2
-  private _bridge: PluginV2
+  private _connectorAddress: string
+  private _connectorPort: number
+  private _client: any
+  private _account: AccountInfo
 
-  // Cconnect
-  constructor (plugin: PluginV2, bridge: PluginV2) {
+  constructor (opt: IlpPluginProxyOpts, plugin: PluginV2) {
     this._plugin = plugin
-    this._bridge = bridge
+    this._account = opt.account
+    this._connectorAddress = opt.connector.address
+    this._connectorPort = opt.connector.port
+
   }
 
   async connect (): Promise<void> {
 
-    this._plugin.registerDataHandler(async (data: Buffer): Promise<Buffer> => {
-      return this._bridge.sendData(data)
-    })
-    this._plugin.registerMoneyHandler(async (amount: string): Promise<void> => {
-      return this._bridge.sendMoney(amount)
+    // Connect to connector
+    // new grpc connection to the connector
+    this._client = new IlpGrpc({
+      server: this._connectorAddress + ':' + this._connectorPort,
+      accountId: 'matt',
+      dataHandler: this.handleConnectorData.bind(this)
     })
 
+    // this._plugin.on('connect', () => this.handleConnectionChange(true))
+    // this._plugin.on('disconnect', () => this.handleConnectionChange(false))
+
+    // Connect plugin to server
+    console.log('Establishing plugin Connection')
     await this._plugin.connect()
+    console.log('Plugin connection established')
 
-    this._bridge.registerDataHandler(async (data: Buffer): Promise<Buffer> => {
-      return this._plugin.sendData(data)
-    })
-    this._bridge.registerMoneyHandler(async (amount: string): Promise<void> => {
-      return this._plugin.sendMoney(amount)
-    })
+    await this._client.connect()
 
-    await this._bridge.connect()
+    // Setup Incoming Listeners
+    this._registerDataHandler()
+
+    // Register the account on the connector
+    // try {
+    //   await this._client.addAccount({
+    //     id: 'matt'
+    //   })
+    // } catch (error) {
+    //   console.log(error)
+    // }
   }
 
-  disconnect () {
-    this._plugin.removeAllListeners()
-    this._bridge.removeAllListeners()
-    return Promise.all([
-      this._plugin.disconnect(),
-      this._bridge.disconnect()
-    ])
+  _registerDataHandler () {
+    this._plugin.registerDataHandler(this.handlePluginData.bind(this))
   }
 
-}
-
-class IlpPluginBtp extends AbstractBtpPlugin {
-
-  constructor (options: IlpPluginBtpConstructorOptions) {
-    super(options)
+  async handlePluginData (ilp: Buffer) {
+    return this._client.sendData(ilp)
   }
 
-  sendMoney: MoneyHandler = async (amount: string) => {
-    const response = await this._call('', {
-      type: BtpConstants.TYPE_TRANSFER,
-      requestId: await this._requestId(),
-      data: {
-        amount,
-        protocolData: []
-      }
-    })
-
-    if (response.type === BtpConstants.TYPE_ERROR) {
-      return Promise.reject(response.data)
-    }
-
-    return Promise.resolve()
+  async handleConnectorData (ilp: Buffer) {
+    return this._plugin.sendData(ilp)
   }
 
-  async _handleMoney (from: string, packet: BtpPacket) {
-
-    if (!this._moneyHandler) {
-      throw new Error('no money handler registered')
-    }
-    return this._moneyHandler(packet.data.amount!)
+  async handleConnectionChange (status: boolean) {
+    this._client.updateConnectionStatus(status)
   }
-}
 
-export async function createBtpClientProxy (server: string, plugin: PluginV2): Promise<PluginProxy> {
-  const btpClient = new IlpPluginBtp({ server })
-  const proxy = new PluginProxy(plugin, btpClient)
-  await proxy.connect()
-  return proxy
-}
+  /**
+   * Data handlers to deal with
+   *
+   * @Incoming (coming into the plugin from external source)
+   * *IncomingDataHandler
+   * *IncomingMoneyHandler
+   * These need to be forwarded on via the gRPC to the connector
+   *
+   * @Outgoing (coming from the connector to be sent out from plugin)
+   * OutgoingDataHandler
+   * OutgoingMoneyHandler
+   * Methods on gRPC needs to be setup to listen for an incoming stream and forward to connected plugin on receiving
+   * messages
+   */
 
-export async function createBtpServerProxy (port: number, secret: string, plugin: PluginV2): Promise<PluginProxy> {
-  const btpClient = new IlpPluginBtp({ listener: { port, secret } })
-  const proxy = new PluginProxy(plugin, btpClient)
-  await proxy.connect()
-  return proxy
 }

@@ -1,63 +1,80 @@
-const crypto = require('crypto')
-const IlpPluginBtp = require('ilp-plugin-btp')
-const PSK2 = require('ilp-protocol-psk2') 
+const BtpPlugin = require('ilp-plugin-btp')
+const IlpPacket = require('ilp-packet')
 const PluginProxy = require('.').PluginProxy
+const IlpGrpc = require('ilp-grpc').default
+const CONNECTOR_URL = '127.0.0.1'
 
-const CONNECTOR_URL = 'ws://localhost:9090/plugins'
+const server = new BtpPlugin({
+  listener: {
+    port: 9000,
+    secret: 'secret'
+  }
+})
 
-;(async () => {
+server.registerDataHandler((data => console.log('on server', data)))
 
-  const receiverPlugin =  new IlpPluginBtp({ 
-    server: `btp+ws://:receiver@localhost:7768`
+const grpcServer = new IlpGrpc({
+  listener: {
+    port: '1260'
+  },
+  dataHandler: (data) => console.log('on grpc', data)
+})
+
+
+async function run () {
+
+  await grpcServer.connect()
+
+  const plugin = new BtpPlugin({
+    server: 'btp+ws://:secret@localhost:9000'
   })
-  const receiver = await PSK2.createReceiver({
-    plugin: receiverPlugin,
-    requestHandler: async (params) => {
-      params.accept(Buffer.from('thanks!'))
-      console.log(`Receiver got paid request with ${params.amount} attached and data: ${params.data.toString('utf8')}`)
-      receiver.close()
+
+
+  const proxy = new PluginProxy({
+    connector: {
+      address: CONNECTOR_URL,
+      port: 1260,
+      account: 'test'
     }
+  }, plugin)
+
+
+  //Connecting server and proxy
+  await Promise.all([
+    server.connect(),
+    proxy.connect()
+  ])
+
+
+  const response = await server.sendData(IlpPacket.serializeIlpPrepare({
+    amount: '10',
+    expiresAt: new Date(),
+    executionCondition: Buffer.alloc(32),
+    destination: 'peer.example',
+    data: Buffer.from('hello world')
+  }))
+
+  await grpcServer.sendData(IlpPacket.serializeIlpPrepare({
+    amount: '10',
+    expiresAt: new Date(),
+    executionCondition: Buffer.alloc(32),
+    destination: 'peer.example',
+    data: Buffer.from('hello world')
+  }),'matt')
+
+  // await server.sendMoney(10)
+  // await client.sendMoney(10)
+  // console.log('sent money (no-op)', response)
+
+
+
+  // await client.disconnect()
+  // await server.disconnect()
+  // process.exit(0)
+}
+
+run()
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
   })
-  console.log('Receiver listening')
-
-  // These would normally be passed through some application layer protcol
-  const { destinationAccount, sharedSecret } = receiver.generateAddressAndSecret()
-  console.log(`Use destinationAccount: ${destinationAccount} and sharedSecret: ${sharedSecret.toString('hex')}`)
-
-  const senderPlugin = new IlpPluginBtp({ 
-    server: `btp+wss://:sender@localhost:7768`
-  })
-
-  const senderProxy = new PluginProxy("alice", senderPlugin.sendData.bind(senderPlugin))
-  senderPlugin.registerDataHandler(senderProxy.handleDataFromPlugin.bind(senderProxy))
-
-  senderProxy.on('close', () => console.log('Proxy lost connection to connector.'))
-  senderProxy.on('error', (err) => console.log(`Connection to connector threw an error: ${err.message}`))
-  console.log('Created a proxy over BTP plugin connected to btp+wss://:sender@localhost:7768')
-  
-  await senderProxy.connect(CONNECTOR_URL, {
-    // protocol?: string;
-    handshakeTimeout: 5000,
-    // perMessageDeflate?: boolean | PerMessageDeflateOptions;
-    // localAddress?: string;
-    // protocolVersion?: number;
-    // headers?: { [key: string]: string };
-    // origin?: string;
-    // agent?: http.Agent;
-    // host?: string;
-    // family?: number;
-    // checkServerIdentity?(servername: string, cert: CertMeta): boolean;
-    // rejectUnauthorized?: boolean;
-    // passphrase?: string;
-    // ciphers?: string;
-    // cert?: CertMeta;
-    // key?: CertMeta;
-    // pfx?: string | Buffer;
-    // ca?: CertMeta;
-    reconnectInterval: 5000
-  })
-
-  console.log(`Proxy connected to connector at ${CONNECTOR_URL}`)
-
-})().catch(err => console.log(err))
-
