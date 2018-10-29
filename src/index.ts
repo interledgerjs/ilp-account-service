@@ -42,6 +42,9 @@ export class PluginProxy {
     // Connect gRPC
     await this._connectGrpc()
 
+    this._plugin.on('connect', () => this.handleConnectionChange(true))
+    this._plugin.on('disconnect', () => this.handleConnectionChange(false))
+
     // Setup Incoming Listeners
     this._registerDataHandler()
 
@@ -51,6 +54,7 @@ export class PluginProxy {
         id: this._accountId,
         info: this._account
       })
+      await this.handleConnectionChange(this._plugin.isConnected())
     } catch (error) {
       console.log(error)
     }
