@@ -82,8 +82,8 @@ export class PluginProxy {
     return this._client.sendData(ilp)
   }
 
-  async handleConnectorData (ilp: Buffer) {
-    return this._plugin.sendData(ilp)
+  async handleConnectorData (from: string, data: Buffer) {
+    return this._plugin.sendData(data)
   }
 
   async handleConnectionChange (status: boolean) {
