@@ -45,6 +45,7 @@
   "devDependencies": {
     "@types/chai": "^4.0.10",
     "@types/debug": "0.0.30",
+    "@types/lodash": "^4.14.117",
     "@types/long": "^3.0.32",
     "@types/mocha": "^2.2.45",
     "@types/mock-require": "^2.0.0",
