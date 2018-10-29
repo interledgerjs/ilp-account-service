@@ -32,7 +32,6 @@ export class PluginProxy {
     this._accountId = opt.accountId
     this._connectorAddress = opt.connector.address
     this._connectorPort = opt.connector.port
-
   }
 
   async connect (): Promise<void> {
@@ -58,9 +57,7 @@ export class PluginProxy {
   }
 
   async _connectPlugin () {
-    console.log('Establishing plugin Connection')
     await this._plugin.connect()
-    console.log('Plugin connection established')
   }
 
   async _connectGrpc () {
