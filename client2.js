@@ -41,6 +41,7 @@ async function run() {
   const middlewareManager = new MiddlewareManager({disabledMiddleWare: [], accountInfo: newAccountData.info})
   await middlewareManager.setupHandlers(newAccountData.id)
 
+
   const proxy = new PluginProxy({
     connector: {
       address: CONNECTOR_URL,

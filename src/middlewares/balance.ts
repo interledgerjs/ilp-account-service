@@ -30,7 +30,6 @@ class Balance {
 
   add (amount: BigNumber | string | number) {
     const newBalance = this.balance.plus(amount)
-    console.log('*********add, new balance', newBalance.toNumber())
     if (newBalance.gt(this.maximum)) {
       console.log('rejected balance update. oldBalance=%s newBalance=%s amount=%s', this.balance, newBalance, amount)
       throw new InsufficientLiquidityError('exceeded maximum balance.')
@@ -41,7 +40,6 @@ class Balance {
 
   subtract (amount: BigNumber | string | number) {
     const newBalance = this.balance.minus(amount)
-    console.log('*********subtract, adding amount: ', newBalance.toNumber())
     if (newBalance.lt(this.minimum)) {
       console.log('rejected balance update. oldBalance=%s newBalance=%s amount=%s', this.balance, newBalance, amount)
       throw new Error(`insufficient funds. oldBalance=${this.balance} proposedBalance=${newBalance}`)

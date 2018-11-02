@@ -21,6 +21,9 @@ interface VoidHandler {
 const BUILTIN_MIDDLEWARES: { [key: string]: MiddlewareDefinition } = {
   balance: {
     type: 'balance'
+  },
+  expire: {
+    type: 'expire'
   }
 }
 
