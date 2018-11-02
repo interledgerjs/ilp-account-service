@@ -2,6 +2,7 @@ import * as Debug from 'debug'
 import { PluginV2 } from 'ilp-compat-plugin' // Can this type be pulled from somewhere else?
 import { AccountInfo } from 'ilp-connector/src/types/accounts'
 import IlpGrpc from 'ilp-grpc'
+import MiddlewareManager from './services/middleware-manager'
 
 // const IlpPluginBtp: PluginV2 = AbstractBtpPlugin as any
 const debug = Debug('ilp-pluginproxy')
@@ -25,13 +26,15 @@ export class PluginProxy {
   private _client: any
   private _accountId: string
   private _account: AccountInfo
+  private _middlewareManager: MiddlewareManager
 
-  constructor (opt: IlpPluginProxyOpts, plugin: PluginV2) {
+  constructor (opt: IlpPluginProxyOpts, plugin: PluginV2, middlewareManager: MiddlewareManager) {
     this._plugin = plugin
     this._account = opt.account
     this._accountId = opt.accountId
     this._connectorAddress = opt.connector.address
     this._connectorPort = opt.connector.port
+    this._middlewareManager = middlewareManager
   }
 
   async connect (): Promise<void> {
@@ -79,11 +82,13 @@ export class PluginProxy {
   }
 
   async handlePluginData (ilp: Buffer) {
-    return this._client.sendData(ilp)
+    let ilpAfterIncomingMiddleware = await this._middlewareManager.incomingDataHandler(ilp)
+    return this._client.sendData(ilpAfterIncomingMiddleware)
   }
 
   async handleConnectorData (from: string, data: Buffer) {
-    return this._plugin.sendData(data)
+    let ilpAfterOutgoingMiddleware = await this._middlewareManager.outgoingDataHandler(data)
+    return this._plugin.sendData(ilpAfterOutgoingMiddleware)
   }
 
   async handleConnectionChange (status: boolean) {
