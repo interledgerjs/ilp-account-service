@@ -1,4 +1,3 @@
-const MiddlewareManager = require("./src/services/middleware-manager").default;
 const BtpPlugin = require('ilp-plugin-btp')
 const IlpPacket = require('ilp-packet')
 const PluginProxy = require('.').PluginProxy
@@ -40,9 +39,6 @@ async function run () {
     server: 'btp+ws://:secret@localhost:9000'
   })
 
-  const middlewareManager = new MiddlewareManager({disabledMiddleWare: [], accountInfo: newAccountData.info})
-  await middlewareManager.setupHandlers(newAccountData.id)
-
   const proxy = new PluginProxy({
     connector: {
       address: CONNECTOR_URL,
@@ -50,7 +46,7 @@ async function run () {
     },
     accountId: newAccountData.id,
     account: newAccountData.info
-  }, plugin, middlewareManager)
+  }, plugin)
 
 
   //Connecting server and proxy

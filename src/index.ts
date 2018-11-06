@@ -28,16 +28,18 @@ export class PluginProxy {
   private _account: AccountInfo
   private _middlewareManager: MiddlewareManager
 
-  constructor (opt: IlpPluginProxyOpts, plugin: PluginV2, middlewareManager: MiddlewareManager) {
+  constructor (opt: IlpPluginProxyOpts, plugin: PluginV2, disabledMiddleWare: string[] = []) {
     this._plugin = plugin
     this._account = opt.account
     this._accountId = opt.accountId
     this._connectorAddress = opt.connector.address
     this._connectorPort = opt.connector.port
-    this._middlewareManager = middlewareManager
+    this._middlewareManager = new MiddlewareManager({ disabledMiddleWare: disabledMiddleWare, accountInfo: opt.account })
   }
 
   async connect (): Promise<void> {
+    // Setup middleware
+    await this._middlewareManager.setupHandlers(this._accountId)
 
     // Connect plugin to server
     await this._connectPlugin()
