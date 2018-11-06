@@ -1,7 +1,7 @@
 import * as Debug from 'debug'
 import { PluginV2 } from 'ilp-compat-plugin' // Can this type be pulled from somewhere else?
 import { AccountInfo } from 'ilp-connector/src/types/accounts'
-import IlpGrpc from 'ilp-grpc'
+import { BtpError, BtpMessage, BtpMessageContentType, createConnection } from 'ilp-protocol-btp3'
 
 // const IlpPluginBtp: PluginV2 = AbstractBtpPlugin as any
 const debug = Debug('ilp-pluginproxy')
@@ -40,6 +40,7 @@ export class PluginProxy {
     await this._connectPlugin()
 
     // Connect gRPC
+
     await this._connectGrpc()
 
     this._plugin.on('connect', () => this.handleConnectionChange(true))
@@ -47,17 +48,7 @@ export class PluginProxy {
 
     // Setup Incoming Listeners
     this._registerDataHandler()
-
-    // Register the account on the connector
-    try {
-      await this._client.addAccount({
-        id: this._accountId,
-        info: this._account
-      })
-      await this.handleConnectionChange(this._plugin.isConnected())
-    } catch (error) {
-      console.log(error)
-    }
+    this._registerConnectorDataHandler()
   }
 
   async _connectPlugin () {
@@ -65,25 +56,48 @@ export class PluginProxy {
   }
 
   async _connectGrpc () {
-    this._client = new IlpGrpc({
-      server: this._connectorAddress + ':' + this._connectorPort,
-      accountId: this._accountId,
-      dataHandler: this.handleConnectorData.bind(this)
+    this._client = await createConnection(this._connectorAddress + ':' + this._connectorPort,{
+      headers: {
+        authorization: 'Bearer TOKEN'
+      },
+      accountId: 'matt',
+      accountInfo: {
+        relation: 'parent',
+        assetScale: 9,
+        assetCode: 'xrp'
+      }
     })
-
-    await this._client.connect()
   }
 
   _registerDataHandler () {
     this._plugin.registerDataHandler(this.handlePluginData.bind(this))
   }
 
-  async handlePluginData (ilp: Buffer) {
-    return this._client.sendData(ilp)
+  _registerConnectorDataHandler () {
+    this._client.on('request', (message: BtpMessage, replyCallback: (reply: BtpMessage | BtpError | Promise<BtpMessage | BtpError>) => void) => {
+      replyCallback(new Promise(async (respond) => {
+        respond({
+          protocol: 'ilp',
+          contentType: BtpMessageContentType.ApplicationOctetStream,
+          payload:  await this._plugin.sendData(message.payload)
+        })
+      }))
+    })
   }
 
-  async handleConnectorData (from: string, data: Buffer) {
-    return this._plugin.sendData(data)
+  async handlePluginData (ilp: Buffer) {
+    return this._call(ilp)
+  }
+
+  async _call (ilp: Buffer): Promise<Buffer> {
+    return new Promise<Buffer>(async (resolve, reject) => {
+      let response = await this._client.request({
+        protocol: 'ilp',
+        contentType: 1,
+        payload: ilp
+      })
+      resolve(response.payload)
+    })
   }
 
   async handleConnectionChange (status: boolean) {

@@ -39,8 +39,8 @@
     "debug": "^3.1.0",
     "ilp-compat-plugin": "^2.0.3",
     "ilp-connector": "^22.1.0",
-    "ilp-grpc": "github:matdehaast/ilp-grpc",
-    "ilp-plugin-btp": "^1.1.8"
+    "ilp-plugin-btp": "^1.1.8",
+    "ilp-protocol-btp3": "github:matdehaast/ilp-protocol-btp3#mat-grpc"
   },
   "devDependencies": {
     "@types/chai": "^4.0.10",
