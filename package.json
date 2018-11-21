@@ -1,7 +1,7 @@
 {
-  "name": "ilp-pluginproxy",
-  "version": "0.1.0",
-  "description": "Proxy for ILP plugins that exposes a simple WebSocket interface so non-JS connectors can use the plugin",
+  "name": "ilp-account-service",
+  "version": "0.0.0",
+  "description": "",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "scripts": {
@@ -22,20 +22,18 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/interledgerjs/ilp-plugin-grpc.git"
+    "url": "git+https://github.com/interledgerjs/ilp-account-service.git"
   },
   "keywords": [
     "interledger",
-    "ilp",
-    "btp",
-    "proxy"
+    "account service"
   ],
   "author": "Adrian Hope-Bailie <adrian@ripple.com>",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/interledgerjs/ilp-pluginproxy/issues"
+    "url": "https://github.com/interledgerjs/ilp-account-service/issues"
   },
-  "homepage": "https://github.com/interledgerjs/ilp-pluginproxy#readme",
+  "homepage": "https://github.com/interledgerjs/ilp-account-service#readme",
   "dependencies": {
     "bignumber.js": "^8.0.1",
     "debug": "^3.1.0",
