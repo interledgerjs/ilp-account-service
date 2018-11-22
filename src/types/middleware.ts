@@ -1,4 +1,7 @@
-import { AccountInfo } from './accounts'
+import { AccountEntry } from './accounts'
+import { IlpPacket, IlpPrepare } from 'ilp-packet'
+import { IlpReply } from './packet'
+import Stats from '../services/stats'
 
 export interface MiddlewareDefinition {
   type: string,
@@ -6,10 +9,11 @@ export interface MiddlewareDefinition {
 }
 
 export interface MiddlewareServices {
-  getInfo (accountId: string): AccountInfo
-  // getOwnAddress (): string
-  sendData (data: Buffer, accountId: string): Promise<Buffer>
-  sendMoney (amount: string, accountId: string): Promise<void>
+  stats: Stats,
+  getInfo (): AccountEntry
+  sendIlpPacket (data: IlpPacket, accountId: string): Promise<IlpPacket>
+  sendIlpPacketToConnector?: (packet: IlpPrepare) => Promise<IlpReply>
+  sendMoney (amount: string): Promise<void>
 }
 
 export interface MiddlewareCallback<T,U> {
@@ -21,7 +25,7 @@ export interface MiddlewareMethod<T,U> {
 }
 
 export interface MiddlewareMethods {
-  data: MiddlewareMethod<Buffer, Buffer>
+  data: MiddlewareMethod<IlpPacket, IlpPacket>
   money: MiddlewareMethod<string, void>
 }
 
@@ -40,14 +44,14 @@ export interface Pipeline<T,U> {
 
 export interface Pipelines {
   readonly startup: Pipeline<void, void>,
-  readonly incomingData: Pipeline<Buffer, Buffer>,
+  readonly incomingData: Pipeline<IlpPrepare, IlpReply>,
   readonly incomingMoney: Pipeline<string, void>,
-  readonly outgoingData: Pipeline<Buffer, Buffer>
+  readonly outgoingData: Pipeline<IlpPrepare, IlpReply>
   readonly outgoingMoney: Pipeline<string, void>
 }
 
 export interface Middleware {
-  applyToPipelines: (pipelines: Pipelines, accountId: string) => Promise<void>
+  applyToPipelines: (pipelines: Pipelines) => Promise<void>
 }
 
 export interface MiddlewareConstructor {

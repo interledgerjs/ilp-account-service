@@ -1,8 +1,8 @@
 export interface AccountInfo {
   relation: 'parent' | 'peer' | 'child',
-  plugin: string,
   assetCode: string,
   assetScale: number,
+  plugin?: string,
   balance?: {
     minimum: string,
     maximum: string,
@@ -24,4 +24,9 @@ export interface AccountInfo {
   sendRoutes?: boolean,
   receiveRoutes?: boolean,
   ilpAddressSegment?: string
+}
+
+export interface AccountEntry {
+  id: string,
+  info: AccountInfo
 }

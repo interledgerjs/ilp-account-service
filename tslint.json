@@ -2,7 +2,8 @@
   "extends": "tslint-config-standard",
   "linterOptions": {
     "exclude": [
-      "test/**/*"
+      "test/**/*",
+      "src/schemas/*.ts"
     ]
   }
 }

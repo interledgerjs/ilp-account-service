@@ -1,5 +1,4 @@
-import { loadModuleOfType, composeMiddleware } from '../libs/utils'
-
+import { loadModuleOfType, composeMiddleware } from '../lib/utils'
 import {
   Middleware,
   MiddlewareDefinition,
@@ -8,10 +7,13 @@ import {
   Pipeline,
   Pipelines
 } from '../types/middleware'
-import { DataHandler, MoneyHandler } from '../types/plugin'
-import MiddlewarePipeline from '../libs/middleware-pipeline'
-import { Errors } from 'ilp-packet'
+import { MoneyHandler, PluginInstance } from '../types/plugin'
+import MiddlewarePipeline from '../lib/middleware-pipeline'
+import { IlpPrepare, Errors } from 'ilp-packet'
 import { AccountInfo } from '../types/accounts'
+import { AccountService } from '../types/account-service'
+import { IlpReply } from '../types/packet'
+import Stats from './stats'
 const { codes, UnreachableError } = Errors
 
 interface VoidHandler {
@@ -19,69 +21,87 @@ interface VoidHandler {
 }
 
 const BUILTIN_MIDDLEWARES: { [key: string]: MiddlewareDefinition } = {
+  rateLimit: {
+    type: 'rate-limit'
+  },
+  throughput: {
+    type: 'throughput'
+  },
   balance: {
     type: 'balance'
   },
   expire: {
     type: 'expire'
+  },
+  connector: {
+    type: 'connector'
   }
-}
-
-export interface MiddlewareOptions {
-  disabledMiddleWare: string[],
-  accountInfo: AccountInfo
 }
 
 export default class MiddlewareManager {
 
-  public outgoingDataHandler: DataHandler
-  public outgoingMoneyHandler: MoneyHandler
-  public incomingDataHandler: DataHandler
-  public incomingMoneyHandler: MoneyHandler
+  protected outgoingDataHandler?: (param: IlpPrepare) => Promise<IlpReply>
+  protected outgoingMoneyHandler?: MoneyHandler
   protected middlewares: { [key: string]: Middleware }
-  private startupHandler: VoidHandler
-  private accountInfo: AccountInfo
+  protected startupHandler?: VoidHandler
+  protected accountInfo: AccountInfo
+  protected accountId: string
+  protected stats: Stats
 
-  constructor (options: MiddlewareOptions) {
+  constructor (disabledMiddleWare: string[], accountId: string, accountInfo: AccountInfo, sendIlpPacketToConnector?: (packet: IlpPrepare) => Promise<IlpReply>) {
 
-    const disabledMiddlewareConfig: string[] = options.disabledMiddleWare || []
+    const disabledMiddlewareConfig: string[] = disabledMiddleWare || []
 
     this.middlewares = {}
-    this.accountInfo = options.accountInfo
+    this.accountId = accountId
+    this.accountInfo = accountInfo
+    this.stats = new Stats()
 
     for (const name of Object.keys(BUILTIN_MIDDLEWARES)) {
       if (disabledMiddlewareConfig[name]) {
         continue
       }
 
-      this.middlewares[name] = this.construct(name, BUILTIN_MIDDLEWARES[name])
+      this.middlewares[name] = this.construct(name, BUILTIN_MIDDLEWARES[name], sendIlpPacketToConnector)
     }
   }
 
-  construct (name: string, definition: MiddlewareDefinition): Middleware {
+  construct (name: string, definition: MiddlewareDefinition, sendIlpPacketToConnector?: (packet: IlpPrepare) => Promise<IlpReply>): Middleware {
     // Custom middleware
     const Middleware: MiddlewareConstructor =
       loadModuleOfType('middleware', definition.type)
 
     return new Middleware(definition.options || {}, {
-      getInfo: () => this.accountInfo,
-      sendData: this.sendData.bind(this),
-      sendMoney: this.sendMoney.bind(this)
+      stats: this.stats,
+      getInfo: () => { return { id: this.accountId, info: this.accountInfo } },
+      sendIlpPacket: this.sendIlpPacket.bind(this),
+      sendMoney: this.sendMoney.bind(this),
+      sendIlpPacketToConnector: sendIlpPacketToConnector
     })
   }
 
-  async setupHandlers (accountId: string) {
+  /**
+   * Executes middleware hooks for connector startup.
+   *
+   * This should be called after the plugins are connected
+   */
+  async startup () {
+    const handler = this.startupHandler
+    if (handler) await handler(undefined)
+  }
+
+  async setupHandlers (accountService: AccountService, plugin: PluginInstance) {
     const pipelines: Pipelines = {
       startup: new MiddlewarePipeline<void, void>(),
-      incomingData: new MiddlewarePipeline<Buffer, Buffer>(),
+      incomingData: new MiddlewarePipeline<IlpPrepare, IlpReply>(),
       incomingMoney: new MiddlewarePipeline<string, void>(),
-      outgoingData: new MiddlewarePipeline<Buffer, Buffer>(),
+      outgoingData: new MiddlewarePipeline<IlpPrepare, IlpReply>(),
       outgoingMoney: new MiddlewarePipeline<string, void>()
     }
     for (const middlewareName of Object.keys(this.middlewares)) {
       const middleware = this.middlewares[middlewareName]
       try {
-        await middleware.applyToPipelines(pipelines, accountId)
+        await middleware.applyToPipelines(pipelines)
       } catch (err) {
         const errInfo = (err && typeof err === 'object' && err.stack) ? err.stack : String(err)
 
@@ -91,11 +111,9 @@ export default class MiddlewareManager {
     }
 
     // Generate outgoing middleware
-    const submitData = async (data: Buffer) => {
+    const sendOutgoingIlpPacket = async (packet: IlpPrepare) => {
       try {
-
-        return data
-
+        return await accountService.sendIlpPacket(packet)
       } catch (e) {
         let err = e
         if (!err || typeof err !== 'object') {
@@ -112,13 +130,10 @@ export default class MiddlewareManager {
       }
     }
 
-    //TODO: change submitMoney to be handled through grpc
-    const submitMoney = async () => {}
-    // const submitMoney = plugin.sendMoney.bind(plugin)
-
+    const submitMoney = plugin.sendMoney.bind(plugin)
     const startupHandler = this.createHandler(pipelines.startup, async () => { return })
-    const outgoingDataHandler: DataHandler =
-      this.createHandler(pipelines.outgoingData, submitData)
+    const outgoingDataHandler: (param: IlpPrepare) => Promise<IlpReply> =
+      this.createHandler(pipelines.outgoingData, sendOutgoingIlpPacket)
     const outgoingMoneyHandler: MoneyHandler =
       this.createHandler(pipelines.outgoingMoney, submitMoney)
 
@@ -128,31 +143,33 @@ export default class MiddlewareManager {
 
     // Generate incoming middleware
     const handleMoney: MoneyHandler = async () => void 0
-    const incomingDataHandler: DataHandler =
-      this.createHandler(pipelines.incomingData, async (data: Buffer) => data)
+    const handleIlpPacket: (param: IlpPrepare) => Promise<IlpReply> =
+      (packet: IlpPrepare) => this.sendIlpPacket(packet)
+    const incomingDataHandler: (param: IlpPrepare) => Promise<IlpReply> =
+      this.createHandler(pipelines.incomingData, handleIlpPacket)
     const incomingMoneyHandler: MoneyHandler =
       this.createHandler(pipelines.incomingMoney, handleMoney)
 
-    this.incomingDataHandler = incomingDataHandler
-    this.incomingMoneyHandler = incomingMoneyHandler
+    accountService.registerIlpPacketHandler(incomingDataHandler)
+    plugin.registerMoneyHandler(incomingMoneyHandler)
   }
 
-  // removePlugin (accountId: string, accountManager: AccountManager) {
-  //   accountManager.deregisterDataHandler(accountId)
-  //   accountManager.deregisterMoneyHandler(accountId)
-  // }
+  removeHandlers () {
+    this.startupHandler = undefined
+    this.outgoingDataHandler = undefined
+  }
 
-  async sendData (data: Buffer) {
+  async sendIlpPacket (packet: IlpPrepare): Promise<IlpReply> {
     const handler = this.outgoingDataHandler
 
     if (!handler) {
-      throw new UnreachableError('there is no outgoing data handler')
+      throw new UnreachableError('outgoing data middleware not setup for accountId=' + this.accountId)
     }
 
-    return handler(data)
+    return handler(packet)
   }
 
-  async sendMoney (amount: string) {
+  async sendMoney (amount: string): Promise<void> {
     const handler = this.outgoingMoneyHandler
 
     if (!handler) {

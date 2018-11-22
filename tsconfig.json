@@ -8,10 +8,9 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "inlineSources": true,
-    "strictNullChecks": true,
+    "strict": true,
     "suppressImplicitAnyIndexErrors": true,
   },
-  "types": [],
   "compileOnSave": true,
   "include": [
     "src/**/*.ts",
