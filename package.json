@@ -2,23 +2,29 @@
   "name": "ilp-account-service",
   "version": "0.0.0",
   "description": "",
-  "main": "src/index.js",
-  "types": "src/index.d.ts",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "bin": {
+    "ilp-account-service": "./build/index.js"
+  },
   "scripts": {
-    "build": "npm run schema-to-tsd && tsc",
+    "start": "node build/index.js",
+    "clean": "rm -Rf .nyc_output && rm -Rf coverage && rm -Rf build ",
+    "build": "npm run clean && npm run schema-to-tsd && npm run compile-ts && npm run copy-schemas",
+    "copy-schemas": "mkdir -p ./build/schemas && cp ./src/schemas/*.json ./build/schemas",
+    "compile-ts": "tsc --project .",
     "prepare": "npm run build",
     "pretest": "npm run build",
     "schema-to-tsd": "node scripts/build_schema_types",
-    "test": "nyc mocha",
+    "test": "nyc mocha --require source-map-support/register --exit test",
     "lint": "tslint --project .",
     "codecov": "codecov",
-    "doc": "typedoc --options typedoc.js src",
-    "publish-docs": "npm run doc && node scripts/publish-docs.js"
+    "doc": "typedoc --options typedoc.js src"
   },
   "files": [
-    "src/*.js",
-    "src/*.js.map",
-    "src/*.d.ts"
+    "build/**/*.js",
+    "build/**/*.js.map",
+    "build/**/*.d.ts"
   ],
   "repository": {
     "type": "git",
@@ -38,6 +44,7 @@
     "bignumber.js": "^8.0.1",
     "debug": "^3.1.0",
     "ilp-logger": "^1.1.2",
+    "ilp-packet": "^3.0.4",
     "ilp-transport-grpc": "github:interledgerjs/ilp-transport-grpc",
     "prom-client": "^11.2.0"
   },

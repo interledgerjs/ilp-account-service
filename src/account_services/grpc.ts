@@ -3,15 +3,13 @@ import { GrpcTransport, MessagePayload, FrameContentType, ErrorPayload } from 'i
 import { AccountService } from '../types/account-service'
 import { deserializeIlpPacket, serializeIlpPacket, IlpPrepare, serializeIlpPrepare, deserializeIlpPrepare } from 'ilp-packet'
 import { AccountServiceBase } from './base'
-import { IlpReply, deserializeIlpReply, serializeIlpReply } from '../types/packet'
+import { IlpReply, deserializeIlpReply, serializeIlpReply, IlpPacketHander } from '../types/packet'
 import createLogger from 'ilp-logger'
 const log = createLogger('grpc-account-service')
 
 export default class GrpcAccountService extends AccountServiceBase implements AccountService {
 
   protected stream: GrpcTransport
-  protected packetHandler?: (data: IlpPrepare) => Promise<IlpReply>
-
   constructor (accountId: string, accountInfo: AccountInfo, stream: GrpcTransport) {
 
     super(accountId, accountInfo)
@@ -19,11 +17,11 @@ export default class GrpcAccountService extends AccountServiceBase implements Ac
 
     stream.on('request', (message: MessagePayload, replyCallback: (reply: MessagePayload | ErrorPayload | Promise<MessagePayload | ErrorPayload>) => void) => {
       replyCallback(new Promise(async (respond, reject) => {
-        if (this.packetHandler) {
+        if (this._ilpPacketHandler) {
           respond({
             protocol: 'ilp',
             contentType: FrameContentType.ApplicationOctetStream,
-            payload: serializeIlpReply(await this.packetHandler(deserializeIlpPrepare(message.payload)))
+            payload: serializeIlpReply(await this._ilpPacketHandler(deserializeIlpPrepare(message.payload)))
           })
         } else {
           reject(new Error('No handler registered for incoming data'))
@@ -37,16 +35,16 @@ export default class GrpcAccountService extends AccountServiceBase implements Ac
 
   }
 
-  async connect () {
-    // TODO - This should return immediately since the connection was incoming
+  async startup () {
+    // No-op
   }
 
-  async disconnect () {
-    // TODO
+  async shutdown () {
+    // TODO - Close stream
   }
 
   isConnected () {
-    return true // hard code to true for now
+    return true // TODO - return status from remote plugin and/or current connection (heartbeat?)
   }
 
   async sendIlpPacket (packet: IlpPrepare): Promise<IlpReply> {
@@ -63,23 +61,12 @@ export default class GrpcAccountService extends AccountServiceBase implements Ac
       }
     })
   }
-  registerIlpPacketHandler (handler: (data: IlpPrepare) => Promise<IlpReply>) {
-    this.packetHandler = handler
-  }
-
-  deregisterIlpPacketHandler () {
-    this.packetHandler = undefined
-  }
-
-  getInfo () {
-    return this.info
-  }
 
   private _streamConnect () {
-    if (this.connectHandler) this.connectHandler()
+    if (this._connectHandler) this._connectHandler()
   }
 
   private _streamDisconnect () {
-    if (this.disconnectHandler) this.disconnectHandler()
+    if (this._disconnectHandler) this._disconnectHandler()
   }
 }

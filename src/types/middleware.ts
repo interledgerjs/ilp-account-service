@@ -11,8 +11,7 @@ export interface MiddlewareDefinition {
 export interface MiddlewareServices {
   stats: Stats,
   getInfo (): AccountEntry
-  sendIlpPacket (data: IlpPacket, accountId: string): Promise<IlpPacket>
-  sendIlpPacketToConnector?: (packet: IlpPrepare) => Promise<IlpReply>
+  getOwnAddress (): string
   sendMoney (amount: string): Promise<void>
 }
 

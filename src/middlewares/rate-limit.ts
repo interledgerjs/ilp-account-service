@@ -14,6 +14,7 @@ import Stats from '../services/stats'
 const { RateLimitedError } = Errors
 const DEFAULT_REFILL_PERIOD = 60 * 1000 // 1 minute
 const DEFAULT_REFILL_COUNT = 10000
+const DEFAULT_CAPACITY = 10000
 
 export default class RateLimitMiddleware implements Middleware {
   private getInfo: () => AccountEntry
@@ -29,7 +30,7 @@ export default class RateLimitMiddleware implements Middleware {
     const {
       refillPeriod = DEFAULT_REFILL_PERIOD,
       refillCount = DEFAULT_REFILL_COUNT,
-      capacity = refillCount
+      capacity = DEFAULT_CAPACITY
     } = account.info.rateLimit || {}
 
     log.trace('created token bucket for account. accountId=%s refillPeriod=%s refillCount=%s capacity=%s', account.id, refillPeriod, refillCount, capacity)

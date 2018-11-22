@@ -4,9 +4,7 @@
 /coverage/
 
 # Compiled Files
-/src/*.js
-/src/*.js.map
-/src/*.d.ts
+/build
 /test/*.js
 /test/*.js.map
 /test/*.d.ts

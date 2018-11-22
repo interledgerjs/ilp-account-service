@@ -2,7 +2,7 @@ import { Middleware, MiddlewareCallback, MiddlewareServices, Pipelines } from '.
 import { AccountEntry } from '../types/accounts'
 import BigNumber from 'bignumber.js'
 import { Type, IlpPrepare, Errors } from 'ilp-packet'
-import { IlpReply } from '../types/packet'
+import { IlpReply, isFulfill } from '../types/packet'
 import Stats from '../services/stats'
 import createLogger from 'ilp-logger'
 const log = createLogger('balance-middleware')
@@ -98,7 +98,7 @@ export default class BalanceMiddleware implements Middleware {
           this.maybeSettle()
 
           this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
-          return await next(dummy)
+          return next(dummy)
         }
       })
 
@@ -128,15 +128,15 @@ export default class BalanceMiddleware implements Middleware {
             throw err
           }
 
-          if (result.type === Type.TYPE_ILP_REJECT) {
+          if (isFulfill(result)) {
+            this.maybeSettle().catch(console.log)
+            this.stats.incomingDataPacketValue.increment(account, { result : 'fulfilled' }, + amount)
+          } else {
             // Refund on reject
             balance.subtract(amount)
             console.log('incoming packet refunded due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
             this.stats.incomingDataPacketValue.increment(account, { result : 'rejected' }, + amount)
-          } else if (result.type === Type.TYPE_ILP_FULFILL) {
-            this.maybeSettle().catch(console.log)
-            this.stats.incomingDataPacketValue.increment(account, { result : 'fulfilled' }, + amount)
           }
 
           return result
@@ -175,16 +175,16 @@ export default class BalanceMiddleware implements Middleware {
             throw err
           }
 
-          if (result.type === Type.TYPE_ILP_REJECT) {
-            console.log('outgoing packet not applied due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
-            this.stats.outgoingDataPacketValue.increment(account, { result : 'rejected' }, + amount)
-          } else if (result.type === Type.TYPE_ILP_FULFILL) {
+          if (isFulfill(result)) {
             // Decrease balance on prepare
             balance.subtract(amount)
             this.maybeSettle().catch(console.log)
             console.log('balance decreased due to outgoing ilp fulfill. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
             this.stats.outgoingDataPacketValue.increment(account, { result : 'fulfilled' }, + amount)
+          } else {
+            console.log('outgoing packet not applied due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+            this.stats.outgoingDataPacketValue.increment(account, { result : 'rejected' }, + amount)
           }
 
           return result

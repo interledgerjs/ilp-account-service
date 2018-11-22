@@ -2,10 +2,11 @@ import { AccountInfo } from '../types/accounts'
 import { PluginInstance } from '../types/plugin'
 import { AccountService } from '../types/account-service'
 import { AccountServiceBase } from './base'
-import { IlpPrepare, serializeIlpPrepare, deserializeIlpPrepare, serializeIlpFulfill, serializeIlpReject } from 'ilp-packet'
-import { deserializeIlpReply, IlpReply, isFulfill } from '../types/packet'
+import { IlpPrepare, serializeIlpPrepare, deserializeIlpPrepare, deserializeIlpPacket } from 'ilp-packet'
+import { deserializeIlpReply, IlpReply, serializeIlpReply } from '../types/packet'
 import MiddlewareManager from '../services/middleware-manager'
 import createLogger from 'ilp-logger'
+import { UnreachableError } from 'ilp-packet/dist/src/errors'
 const log = createLogger('plugin-account-service')
 
 export default class PluginAccountService extends AccountServiceBase implements AccountService {
@@ -20,19 +21,39 @@ export default class PluginAccountService extends AccountServiceBase implements 
     this.plugin.on('connect', this._pluginConnect.bind(this))
     this.plugin.on('disconnect', this._pluginDisconnect.bind(this))
 
-    this.middlewareManager = new MiddlewareManager(disabledMiddleware, this.id, this.info)
-    this.middlewareManager.setupHandlers(this, this.plugin)
+    this.middlewareManager = new MiddlewareManager(this, disabledMiddleware)
   }
 
-  async startupMiddleware () {
-    await this.middlewareManager.startup()
+  async startup () {
+
+    const { incomingIlpPacketPipeline, incomingMoneyPipeline } = await this.middlewareManager.setupHandlers({
+      outgoingIlpPacket: async (packet) => {
+        return deserializeIlpPacket(await this.plugin.sendData(serializeIlpPrepare(packet))).data as IlpReply
+      },
+      outgoingMoney: async (amount) => {
+        return this.plugin.sendMoney(amount)
+      },
+      incomingIlpPacket: async (packet) => {
+        if (this._ilpPacketHandler) return this._ilpPacketHandler(packet)
+        throw new UnreachableError('Unable to forward packet. No upstream bound to account.')
+      },
+      incomingMoney: async () => {
+        return
+      }
+    })
+    this.plugin.registerDataHandler(async (data) => {
+      return serializeIlpReply(await incomingIlpPacketPipeline(deserializeIlpPrepare(data)))
+    })
+    this.plugin.registerMoneyHandler(async (amount) => {
+      return incomingMoneyPipeline(amount)
+    })
+
+    await this.plugin.connect({})
+    return this.middlewareManager.startup()
   }
 
-  async connect () {
-    return this.plugin.connect({})
-  }
-
-  async disconnect () {
+  async shutdown () {
+    await this.middlewareManager.shutdown()
     return this.plugin.disconnect()
   }
 
@@ -41,29 +62,15 @@ export default class PluginAccountService extends AccountServiceBase implements 
   }
 
   async sendIlpPacket (packet: IlpPrepare) {
-    return deserializeIlpReply(await this.plugin.sendData(serializeIlpPrepare(packet)))
+    return this.middlewareManager.sendOutgoingIlpPacket(packet)
   }
 
-  registerIlpPacketHandler (handler: (data: IlpPrepare) => Promise<IlpReply>) {
-    this.plugin.registerDataHandler(async (data: Buffer) => {
-      const reply = await handler(deserializeIlpPrepare(data))
-      return isFulfill(reply) ? serializeIlpFulfill(reply) : serializeIlpReject(reply)
-    })
+  protected async _pluginConnect () {
+    if (this._connectHandler) return this._connectHandler()
   }
 
-  deregisterIlpPacketHandler () {
-    this.plugin.deregisterDataHandler()
+  protected async _pluginDisconnect () {
+    if (this._disconnectHandler) return this._disconnectHandler()
   }
 
-  private _pluginConnect () {
-    if (this.connectHandler) this.connectHandler()
-  }
-
-  private _pluginDisconnect () {
-    if (this.disconnectHandler) this.disconnectHandler()
-  }
-
-  getInfo () {
-    return this.info
-  }
 }

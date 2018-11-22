@@ -2,18 +2,24 @@
   "compilerOptions": {
     "target": "es2017",
     "module": "commonjs",
+    "sourceMap": true,
     "declaration": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "removeComments": true,
     "moduleResolution": "node",
-    "sourceMap": true,
     "inlineSources": true,
     "strict": true,
     "suppressImplicitAnyIndexErrors": true,
+    "outDir": "./build",
+    "rootDir": "./src"
   },
-  "compileOnSave": true,
   "include": [
-    "src/**/*.ts",
-    "test/*.ts"
-  ]
+    "src/**/*"
+  ],
+  "exclude": [
+    "src/tests/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+  ],
+  "compileOnSave": true
 }

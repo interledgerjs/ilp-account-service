@@ -1,50 +1,66 @@
 import { AccountInfo } from '../types/accounts'
 import createLogger from 'ilp-logger'
+import { IlpPacketHander } from '../types/packet'
 const log = createLogger('plugin-account-service')
 
 export class AccountServiceBase {
 
-  protected id: string
-  protected info: AccountInfo
-  protected connectHandler?: () => void
-  protected disconnectHandler?: () => void
+  protected _id: string
+  protected _info: AccountInfo
+  protected _connectHandler?: () => void
+  protected _disconnectHandler?: () => void
+  protected _ilpPacketHandler?: IlpPacketHander
 
   constructor (accountId: string, accountInfo: AccountInfo) {
-
-    this.id = accountId
-    this.info = accountInfo
-
+    this._id = accountId
+    this._info = accountInfo
   }
 
   registerConnectHandler (handler: () => void) {
-    if (this.connectHandler) {
-      log.error('Connect handler already exists for account: ' + this.id)
-      throw new Error('Connect handler already exists for account: ' + this.id)
+    if (this._connectHandler) {
+      log.error('Connect handler already exists for account: ' + this._id)
+      throw new Error('Connect handler already exists for account: ' + this._id)
     }
-    this.connectHandler = handler
+    this._connectHandler = handler
   }
 
   deregisterConnectHandler () {
-    if (this.connectHandler) {
-      this.connectHandler = undefined
+    if (this._connectHandler) {
+      this._connectHandler = undefined
     }
   }
 
   registerDisconnectHandler (handler: () => void) {
-    if (this.disconnectHandler) {
-      log.error('Disconnect handler already exists for account: ' + this.id)
-      throw new Error('Disconnect handler already exists for account: ' + this.id)
+    if (this._disconnectHandler) {
+      log.error('Disconnect handler already exists for account: ' + this._id)
+      throw new Error('Disconnect handler already exists for account: ' + this._id)
     }
-    this.disconnectHandler = handler
+    this._disconnectHandler = handler
   }
 
   deregisterDisconnectHandler () {
-    if (this.disconnectHandler) {
-      this.disconnectHandler = undefined
+    if (this._disconnectHandler) {
+      this._disconnectHandler = undefined
     }
   }
 
+  registerIlpPacketHandler (handler: IlpPacketHander) {
+    if (this._ilpPacketHandler) {
+      log.error('ILP packet handler already exists for account: ' + this._id)
+      throw new Error('ILP packet handler already exists for account: ' + this._id)
+    }
+    this._ilpPacketHandler = handler
+  }
+
+  deregisterIlpPacketHandler () {
+    this._ilpPacketHandler = undefined
+  }
+
+  public get id () {
+    return this._id
+  }
+
   getInfo () {
-    return this.info
+    return this._info
   }
 }
