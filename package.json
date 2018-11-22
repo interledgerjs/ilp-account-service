@@ -37,11 +37,7 @@
   "dependencies": {
     "bignumber.js": "^8.0.1",
     "debug": "^3.1.0",
-    "ilp-compat-plugin": "^2.0.3",
-    "ilp-connector": "^22.1.0",
     "ilp-logger": "^1.1.2",
-    "ilp-plugin-btp": "^1.1.8",
-    "ilp-protocol-btp3": "github:matdehaast/ilp-protocol-btp3#mat-grpc",
     "ilp-transport-grpc": "github:interledgerjs/ilp-transport-grpc",
     "prom-client": "^11.2.0"
   },

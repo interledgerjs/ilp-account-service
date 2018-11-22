@@ -5,7 +5,7 @@ import PluginAccountService from './account_services/plugin'
 import { GrpcTransport } from 'ilp-transport-grpc'
 import GrpcAccountService from './account_services/grpc'
 
-export function createOutOfProcessPluginAccountService (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, connectorInfo: ConnectorInfo, disabledMiddleware?: string[]) {
+export function createOutOfProcessPluginAccountService (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, connectorInfo: ConnectorInfo, disabledMiddleware: string[]) {
   return new GrpcPluginProxyAccountService(accountId, accountInfo, plugin, connectorInfo, disabledMiddleware)
 }
 

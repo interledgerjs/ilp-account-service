@@ -5,8 +5,8 @@ import { AccountService } from '../types/account-service'
 import { AccountServiceBase } from './base'
 import { IlpPacket, IlpPrepare, serializeIlpPrepare, deserializeIlpPrepare, serializeIlpFulfill, serializeIlpReject } from 'ilp-packet'
 import { deserializeIlpReply, IlpReply, isFulfill, serializeIlpReply } from '../types/packet'
-import { BtpError, BtpMessage, BtpMessageContentType, createConnection } from 'ilp-protocol-btp3'
 import MiddlewareManager from '../services/middleware-manager'
+import { createConnection, ErrorPayload, FrameContentType, MessagePayload } from 'ilp-transport-grpc'
 
 const log = createLogger('plugin-account-service')
 
@@ -91,20 +91,17 @@ export default class GrpcPluginProxyAccountService extends AccountServiceBase im
 
   private async _connectGrpc () {
     this.client = await createConnection(this.connectorAddress + ':' + this.connectorPort,{
-      headers: {
-        authorization: 'Bearer TOKEN'
-      },
       accountId: this.id,
       accountInfo: this.info
     })
   }
 
   private _registerConnectorDataHandler () {
-    this.client.on('request', (message: BtpMessage, replyCallback: (reply: BtpMessage | BtpError | Promise<BtpMessage | BtpError>) => void) => {
+    this.client.on('request', (message: MessagePayload, replyCallback: (reply: ErrorPayload | MessagePayload | Promise<ErrorPayload | MessagePayload>) => void) => {
       replyCallback(new Promise(async (respond) => {
         respond({
           protocol: 'ilp',
-          contentType: BtpMessageContentType.ApplicationOctetStream,
+          contentType: FrameContentType.ApplicationOctetStream,
           payload: serializeIlpReply(await this.middlewareManager.sendIlpPacket(deserializeIlpPrepare(message.payload)))
         })
       }))
