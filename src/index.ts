@@ -1,9 +1,4 @@
-#!/usr/bin/env node
-
-require('source-map-support').install()
-
-import * as AccountService from './app'
-
-module.exports = {
-  AccountService
-}
+export { AccountServiceBase } from './implementations/base'
+export { default as PluginAccountService } from './implementations/plugin'
+export { AccountService } from './types/account-service'
+export { AnyIlpPacket, IlpReply, IlpPacketHander, serializeIlpReply, deserializeIlpReply, errorToIlpReject, isFulfill, isReject } from './types/packet'

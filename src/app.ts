@@ -1,18 +1,37 @@
-import { AccountInfo } from './types/accounts'
+#!/usr/bin/env node
+import PluginAccountService from './implementations/plugin'
 import { PluginInstance } from './types/plugin'
-import GrpcPluginProxyAccountService, { ConnectorInfo } from './account_services/grpc-plugin-proxy'
-import PluginAccountService from './account_services/plugin'
-import { GrpcTransport } from 'ilp-transport-grpc'
-import GrpcAccountService from './account_services/grpc'
+import { AccountInfo } from './types/accounts'
+import { IlpPrepare } from 'ilp-packet'
+import { IlpPacketHander } from './types/packet'
+require('source-map-support').install()
 
-export function createOutOfProcessPluginAccountService (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, connectorInfo: ConnectorInfo, disabledMiddleware: string[]) {
-  return new GrpcPluginProxyAccountService(accountId, accountInfo, plugin, connectorInfo, disabledMiddleware)
-}
+const run = async () => {
+  // TODO - Load config
+  const accountId = 'adrian'
+  const accountInfo = {} as AccountInfo
 
-export function createProxyAccountService (accountId: string, accountInfo: AccountInfo, stream: GrpcTransport) {
-  return new GrpcAccountService(accountId, accountInfo, stream)
-}
+  // TODO - Create plugin
+  const plugin = {} as PluginInstance
 
-export function createInprocessPluginAccountService (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, disabledMiddleware: string[]) {
-  return new PluginAccountService(accountId, accountInfo, plugin, disabledMiddleware)
+  // TODO - Load transport
+  const transport = {
+    sendIlpPacket: async (packet: IlpPrepare) => {
+      return Promise.resolve({ fulfillment: Buffer.alloc(0), data: Buffer.alloc(0) })
+    },
+    registerIlpPacketHandler: (handler: IlpPacketHander) => {
+      return
+    }
+  }
+
+  const service = new PluginAccountService(accountId, accountInfo, plugin, [])
+
+  // TODO - Bind transport to account service
+  service.registerIlpPacketHandler(transport.sendIlpPacket)
+  transport.registerIlpPacketHandler(service.sendIlpPacket)
+
+  await service.startup()
+
+  console.log('Running...')
 }
+run()
