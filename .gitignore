@@ -3,6 +3,10 @@
 /.nyc_output
 /coverage/
 
+#IDE Related
+.idea
+.vscode
+
 # Compiled Files
 /build
 /test/*.js

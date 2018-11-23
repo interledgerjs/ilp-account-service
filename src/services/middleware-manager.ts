@@ -21,8 +21,8 @@ interface VoidHandler {
 }
 
 const BUILTIN_MIDDLEWARES: { [key: string]: MiddlewareDefinition } = {
-  error: {
-    type: 'error'
+  errorHandler: {
+    type: 'error-handler'
   },
   rateLimit: {
     type: 'rate-limit'
@@ -53,7 +53,7 @@ export default class MiddlewareManager {
 
     this.middlewares = {}
     this.getInfo = () => { return { id: accountService.id, info: accountService.getInfo() } }
-    this.stats = new Stats()
+    this.stats = new Stats(accountService.id)
 
     for (const name of Object.keys(BUILTIN_MIDDLEWARES)) {
       if (disabledMiddlewareConfig[name]) {
