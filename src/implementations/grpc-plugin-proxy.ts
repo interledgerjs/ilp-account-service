@@ -14,24 +14,28 @@ export interface ConnectorInfo {
   address: string
 }
 
-export default class GrpcPluginProxyAccountService extends PluginAccountService implements AccountService {
+export default class GrpcPluginProxyAccountService extends PluginAccountService {
 
   protected connectorAddress: string
   protected connectorPort: number
   protected client: any
 
-  constructor (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, connectorInfo: ConnectorInfo, disabledMiddleware: string[]) {
-
-    super(accountId, accountInfo, plugin, disabledMiddleware)
+  constructor (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, connectorInfo: ConnectorInfo, middlewares: string[]) {
+    super(accountId, accountInfo, plugin, middlewares)
     this.connectorAddress = connectorInfo.address
     this.connectorPort = connectorInfo.port
   }
 
-  async startup () {
-    this.client = await createConnection(this.connectorAddress + ':' + this.connectorPort,{
-      accountId: this._id,
-      accountInfo: this._info
-    })
+  protected async _startup () {
+
+    // Connect plugin and gRPC client
+    await Promise.all([
+      super._startup(),
+      this.client = await createConnection(this.connectorAddress + ':' + this.connectorPort,{
+        accountId: this._id,
+        accountInfo: this._info
+      })
+    ])
 
     this.client.on('request', (message: MessagePayload, replyCallback: (reply: ErrorPayload | MessagePayload | Promise<ErrorPayload | MessagePayload>) => void) => {
       replyCallback(new Promise(async (respond) => {
@@ -53,30 +57,18 @@ export default class GrpcPluginProxyAccountService extends PluginAccountService 
         resolve(deserializeIlpReply(response.payload))
       })
     })
-    return super.startup()
   }
 
-  async shutdown () {
-    await super.shutdown()
+  protected async _shutdown () {
     // TODO - Correctly dispose gRPC stream
     // return this.client.shutdown()
     return
   }
 
-  isConnected () {
+  public isConnected () {
     // TODO Check state of gRPC link too
     // return super.isConnected() && this.client.isConnected()
     return super.isConnected()
-  }
-
-  protected async _pluginConnect () {
-    if (this._connectHandler) this._connectHandler()
-    this._notifyConnectionChange(true)
-  }
-
-  protected async _pluginDisconnect () {
-    if (this._disconnectHandler) this._disconnectHandler()
-    this._notifyConnectionChange(false)
   }
 
   private _notifyConnectionChange (isConnected: boolean) {

@@ -12,57 +12,48 @@ const log = createLogger('plugin-account-service')
 export default class PluginAccountService extends AccountServiceBase implements AccountService {
 
   protected _plugin: PluginInstance
-  protected _middlewareManager: MiddlewareManager
 
-  constructor (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, disabledMiddleware: string[]) {
-
-    super(accountId, accountInfo)
+  constructor (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, middlewares: string[]) {
+    super(accountId, accountInfo, middlewares)
     this._plugin = plugin
     this._plugin.on('connect', this._pluginConnect.bind(this))
     this._plugin.on('disconnect', this._pluginDisconnect.bind(this))
 
-    this._middlewareManager = new MiddlewareManager(this, disabledMiddleware)
+    this._outgoingIlpPacketHandler = async (packet) => {
+      return deserializeIlpPacket(await this._plugin.sendData(serializeIlpPrepare(packet))).data as IlpReply
+    }
+    this._outgoingMoneyHandler = async (amount) => {
+      return this._plugin.sendMoney(amount)
+    }
+
   }
 
-  async startup () {
-
-    const { incomingIlpPacketPipeline, incomingMoneyPipeline } = await this._middlewareManager.setupHandlers({
-      outgoingIlpPacket: async (packet) => {
-        return deserializeIlpPacket(await this._plugin.sendData(serializeIlpPrepare(packet))).data as IlpReply
-      },
-      outgoingMoney: async (amount) => {
-        return this._plugin.sendMoney(amount)
-      },
-      incomingIlpPacket: async (packet) => {
-        if (this._ilpPacketHandler) return this._ilpPacketHandler(packet)
-        throw new UnreachableError('Unable to forward packet. No upstream bound to account.')
-      },
-      incomingMoney: async () => {
-        return
-      }
-    })
-    this._plugin.registerDataHandler(async (data) => {
-      return serializeIlpReply(await incomingIlpPacketPipeline(deserializeIlpPrepare(data)))
-    })
-    this._plugin.registerMoneyHandler(async (amount) => {
-      return incomingMoneyPipeline(amount)
-    })
-
-    await this._plugin.connect({})
-    return this._middlewareManager.startup()
+  async sendMoney (amount: string): Promise<void> {
+    if (this._middlewareManager) {
+      return this._middlewareManager.sendOutgoingMoney(amount)
+    }
+    if (this._outgoingMoneyHandler) {
+      return this._outgoingMoneyHandler(amount)
+    }
+    throw new Error('No handler defined for outgoing packets. _outgoingMoneyHandler must be set before startup.')
   }
 
-  async shutdown () {
-    await this._middlewareManager.shutdown()
+  protected async _startup () {
+    this._plugin.registerDataHandler(async (data: Buffer) => {
+      return serializeIlpReply(await this._incomingIlpPacketHandler(deserializeIlpPrepare(data)))
+    })
+    this._plugin.registerMoneyHandler(async (amount: string) => {
+      return this._incomingMoneyHandler(amount)
+    })
+    return this._plugin.connect({})
+  }
+
+  protected async _shutdown () {
     return this._plugin.disconnect()
   }
 
   isConnected () {
     return this._plugin.isConnected()
-  }
-
-  async sendIlpPacket (packet: IlpPrepare) {
-    return this._middlewareManager.sendOutgoingIlpPacket(packet)
   }
 
   protected async _pluginConnect () {
