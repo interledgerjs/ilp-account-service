@@ -30,7 +30,7 @@ class Balance {
   add (amount: BigNumber | string | number) {
     const newBalance = this.balance.plus(amount)
     if (newBalance.gt(this.maximum)) {
-      console.log('rejected balance update. oldBalance=%s newBalance=%s amount=%s', this.balance, newBalance, amount)
+      log.error('rejected balance update. oldBalance=%s newBalance=%s amount=%s', this.balance, newBalance, amount)
       throw new InsufficientLiquidityError('exceeded maximum balance.')
     }
 
@@ -40,7 +40,7 @@ class Balance {
   subtract (amount: BigNumber | string | number) {
     const newBalance = this.balance.minus(amount)
     if (newBalance.lt(this.minimum)) {
-      console.log('rejected balance update. oldBalance=%s newBalance=%s amount=%s', this.balance, newBalance, amount)
+      log.error('rejected balance update. oldBalance=%s newBalance=%s amount=%s', this.balance, newBalance, amount)
       throw new Error(`insufficient funds. oldBalance=${this.balance} proposedBalance=${newBalance}`)
     }
 
@@ -87,7 +87,7 @@ export default class BalanceMiddleware implements Middleware {
       })
       this.balance = balance
 
-      console.log('initializing balance for account. accountId=%s minimumBalance=%s maximumBalance=%s', account.id, minimum, maximum)
+      log.info('initializing balance for account. accountId=%s minimumBalance=%s maximumBalance=%s', account.id, minimum, maximum)
 
       pipelines.startup.insertLast({
         name: 'balance',
@@ -112,7 +112,7 @@ export default class BalanceMiddleware implements Middleware {
 
           // Increase balance on prepare
           balance.add(amount)
-          console.log('balance increased due to incoming ilp prepare. accountId=%s amount=%s newBalance=%s', this.getInfo().id, amount, balance.getValue())
+          log.info('balance increased due to incoming ilp prepare. accountId=%s amount=%s newBalance=%s', this.getInfo().id, amount, balance.getValue())
           this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
 
           let result
@@ -121,19 +121,19 @@ export default class BalanceMiddleware implements Middleware {
           } catch (err) {
             // Refund on error
             balance.subtract(amount)
-            console.log('incoming packet refunded due to error. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+            log.info('incoming packet refunded due to error. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
             this.stats.incomingDataPacketValue.increment(account, { result : 'failed' }, + amount)
             throw err
           }
 
           if (isFulfill(result)) {
-            this.maybeSettle().catch(console.log)
+            this.maybeSettle().catch(log.error)
             this.stats.incomingDataPacketValue.increment(account, { result : 'fulfilled' }, + amount)
           } else {
             // Refund on reject
             balance.subtract(amount)
-            console.log('incoming packet refunded due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+            log.info('incoming packet refunded due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
             this.stats.incomingDataPacketValue.increment(account, { result : 'rejected' }, + amount)
           }
@@ -146,7 +146,7 @@ export default class BalanceMiddleware implements Middleware {
         name: 'balance',
         method: (amount: string, next: MiddlewareCallback<string, void>) => {
           balance.subtract(amount)
-          console.log('balance reduced due to incoming settlement. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+          log.info('balance reduced due to incoming settlement. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
           this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
           return next(amount)
         }
@@ -169,7 +169,7 @@ export default class BalanceMiddleware implements Middleware {
           try {
             result = await next(packet)
           } catch (err) {
-            console.log('outgoing packet not applied due to error. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+            log.error('outgoing packet not applied due to error. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.outgoingDataPacketValue.increment(account, { result : 'failed' }, + amount)
             throw err
           }
@@ -177,12 +177,12 @@ export default class BalanceMiddleware implements Middleware {
           if (isFulfill(result)) {
             // Decrease balance on prepare
             balance.subtract(amount)
-            this.maybeSettle().catch(console.log)
-            console.log('balance decreased due to outgoing ilp fulfill. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+            this.maybeSettle().catch(log.error)
+            log.info('balance decreased due to outgoing ilp fulfill. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
             this.stats.outgoingDataPacketValue.increment(account, { result : 'fulfilled' }, + amount)
           } else {
-            console.log('outgoing packet not applied due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+            log.info('outgoing packet not applied due to ilp reject. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
             this.stats.outgoingDataPacketValue.increment(account, { result : 'rejected' }, + amount)
           }
 
@@ -194,14 +194,14 @@ export default class BalanceMiddleware implements Middleware {
         name: 'balance',
         method: (amount: string, next: MiddlewareCallback<string, void>) => {
           balance.add(amount)
-          console.log('balance increased due to outgoing settlement. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
+          log.info('balance increased due to outgoing settlement. accountId=%s amount=%s newBalance=%s', account.id, amount, balance.getValue())
           this.stats.balance.setValue(account, {}, balance.getValue().toNumber())
 
           return next(amount)
         }
       })
     } else {
-      console.log('(!!!) balance middleware NOT enabled for account, this account can spend UNLIMITED funds. accountId=%s', account.id)
+      log.info('(!!!) balance middleware NOT enabled for account, this account can spend UNLIMITED funds. accountId=%s', account.id)
     }
   }
 
@@ -223,12 +223,12 @@ export default class BalanceMiddleware implements Middleware {
     const amountDiff = new BigNumber(_amountDiff)
     const account = this.getInfo()
     const balance = this._getBalance()
-    console.log('modifying balance accountId=%s amount=%s', account.id, amountDiff.toString())
+    log.info('modifying balance accountId=%s amount=%s', account.id, amountDiff.toString())
     if (amountDiff.isPositive()) {
       balance.add(amountDiff)
     } else {
       balance.subtract(amountDiff.negated())
-      this.maybeSettle().catch(console.log)
+      this.maybeSettle().catch(log.error)
     }
     this.stats.balance.setValue(this.getInfo(), {}, balance.getValue().toNumber())
     return balance.getValue()
@@ -245,7 +245,7 @@ export default class BalanceMiddleware implements Middleware {
     if (!settle) return
 
     const settleAmount = bnSettleTo.minus(balance.getValue())
-    console.log('settlement triggered. accountId=%s balance=%s settleAmount=%s', account.id, balance.getValue(), settleAmount)
+    log.info('settlement triggered. accountId=%s balance=%s settleAmount=%s', account.id, balance.getValue(), settleAmount)
 
     await this.sendMoney(settleAmount.toString(), account.id)
       .catch(e => {
@@ -253,7 +253,7 @@ export default class BalanceMiddleware implements Middleware {
         if (!err || typeof err !== 'object') {
           err = new Error('Non-object thrown: ' + e)
         }
-        console.log('error occurred during settlement. accountId=%s settleAmount=%s errInfo=%s', account.id, settleAmount, err.stack ? err.stack : err)
+        log.error('error occurred during settlement. accountId=%s settleAmount=%s errInfo=%s', account.id, settleAmount, err.stack ? err.stack : err)
       })
   }
 }
