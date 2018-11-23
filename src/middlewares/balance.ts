@@ -1,8 +1,7 @@
 import { Middleware, MiddlewareCallback, MiddlewareServices, Pipelines } from '../types/middleware'
 import { AccountEntry } from '../types/accounts'
 import BigNumber from 'bignumber.js'
-import { Type, IlpPrepare, Errors } from 'ilp-packet'
-import { IlpReply, isFulfill } from '../types/packet'
+import { IlpPrepare, Errors, IlpReply, isFulfill } from 'ilp-packet'
 import Stats from '../services/stats'
 import createLogger from 'ilp-logger'
 const log = createLogger('balance-middleware')

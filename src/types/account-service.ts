@@ -1,6 +1,5 @@
 import { AccountInfo } from './accounts'
-import { IlpPrepare } from 'ilp-packet'
-import { IlpReply, IlpPacketHander } from './packet'
+import { IlpPrepare, IlpReply, IlpPacketHander } from 'ilp-packet'
 
 export interface AccountService {
   readonly id: string,

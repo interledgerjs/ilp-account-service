@@ -1,6 +1,5 @@
 import createLogger from 'ilp-logger'
-import { IlpPrepare } from 'ilp-packet'
-import { IlpReply, errorToIlpReject } from '../types/packet'
+import { IlpPrepare, IlpReply, errorToIlpReject } from 'ilp-packet'
 import { Middleware, MiddlewareCallback, MiddlewareServices, Pipelines } from '../types/middleware'
 
 export default class ErrorHandlerMiddleware implements Middleware {

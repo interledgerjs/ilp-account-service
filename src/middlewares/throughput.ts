@@ -1,8 +1,7 @@
 import { Middleware, MiddlewareCallback, MiddlewareServices, Pipelines } from '../types/middleware'
 import { AccountEntry } from '../types/accounts'
 import TokenBucket from '../lib/token-bucket'
-import { IlpPrepare, Errors } from 'ilp-packet'
-import { IlpReply } from '../types/packet'
+import { IlpPrepare, IlpReply, Errors } from 'ilp-packet'
 import createLogger from 'ilp-logger'
 const log = createLogger('throughput-middleware')
 const { InsufficientLiquidityError } = Errors

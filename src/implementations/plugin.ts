@@ -2,11 +2,8 @@ import { AccountInfo } from '../types/accounts'
 import { PluginInstance } from '../types/plugin'
 import { AccountService } from '../types/account-service'
 import { AccountServiceBase } from './base'
-import { IlpPrepare, serializeIlpPrepare, deserializeIlpPrepare, deserializeIlpPacket } from 'ilp-packet'
-import { deserializeIlpReply, IlpReply, serializeIlpReply } from '../types/packet'
-import MiddlewareManager from '../services/middleware-manager'
+import { serializeIlpPrepare, deserializeIlpPrepare, deserializeIlpPacket, IlpReply, serializeIlpReply } from 'ilp-packet'
 import createLogger from 'ilp-logger'
-import { UnreachableError } from 'ilp-packet/dist/src/errors'
 const log = createLogger('plugin-account-service')
 
 export default class PluginAccountService extends AccountServiceBase implements AccountService {

@@ -1,5 +1,4 @@
-import { IlpPrepare, Errors } from 'ilp-packet'
-import { IlpReply } from '../types/packet'
+import { IlpPrepare, IlpReply, Errors } from 'ilp-packet'
 import createLogger from 'ilp-logger'
 const log = createLogger('rate-limit-middleware')
 import {

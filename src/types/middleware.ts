@@ -1,6 +1,5 @@
 import { AccountEntry } from './accounts'
-import { IlpPacket, IlpPrepare } from 'ilp-packet'
-import { IlpReply } from './packet'
+import { IlpPacket, IlpReply, IlpPrepare } from 'ilp-packet'
 import Stats from '../services/stats'
 
 export interface MiddlewareDefinition {

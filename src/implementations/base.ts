@@ -1,10 +1,9 @@
 import { AccountInfo } from '../types/accounts'
 import createLogger from 'ilp-logger'
-import { IlpPacketHander, IlpReply } from '../types/packet'
 import MiddlewareManager from '../services/middleware-manager'
 import { AccountService } from '../types/account-service'
 import { MoneyHandler } from '../types/plugin'
-import { IlpPrepare } from 'ilp-packet'
+import { IlpPrepare, IlpPacketHander, IlpReply } from 'ilp-packet'
 import { UnreachableError } from 'ilp-packet/dist/src/errors'
 const log = createLogger('plugin-account-service')
 

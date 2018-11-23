@@ -2,8 +2,7 @@
 import PluginAccountService from './implementations/plugin'
 import { PluginInstance } from './types/plugin'
 import { AccountInfo } from './types/accounts'
-import { IlpPrepare, deserializeIlpPrepare, serializeIlpPrepare } from 'ilp-packet'
-import { IlpPacketHander, serializeIlpReply, IlpReply, deserializeIlpReply } from './types/packet'
+import { serializeIlpReply, IlpReply, deserializeIlpReply, deserializeIlpPrepare, serializeIlpPrepare } from 'ilp-packet'
 import { createConnection, MessagePayload, ErrorPayload, FrameContentType } from 'ilp-transport-grpc'
 require('source-map-support').install()
 
