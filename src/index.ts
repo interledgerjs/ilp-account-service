@@ -2,7 +2,9 @@
 
 export { AccountService } from './types/account-service'
 export { AccountServiceBase } from './implementations/base'
+export { AccountServiceFactory, AccountServiceFactoryOptions } from './types/account-service-factory'
 export { default as PluginAccountService } from './implementations/plugin'
+export { default as PluginAccountServiceFactory } from './factories/plugin'
 import { default as createLogger } from 'ilp-logger'
 import { default as createStore } from 'ilp-store'
 import GrpcAccountService from './implementations/grpc'
