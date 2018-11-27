@@ -2,12 +2,12 @@ export interface AccountInfo {
   relation: 'parent' | 'peer' | 'child',
   assetCode: string,
   assetScale: number,
-  plugin?: string,
+  plugin?: string | { [k: string]: any },
   balance?: {
-    minimum: string,
+    minimum?: string,
     maximum: string,
     settleThreshold?: string,
-    settleTo: string
+    settleTo?: string
   },
   maxPacketAmount?: string,
   throughput?: {

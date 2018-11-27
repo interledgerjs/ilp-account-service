@@ -3,16 +3,15 @@ import createLogger from 'ilp-logger'
 import MiddlewareManager from '../services/middleware-manager'
 import { AccountService } from '../types/account-service'
 import { MoneyHandler } from '../types/plugin'
-import { IlpPrepare, IlpPacketHander, IlpReply } from 'ilp-packet'
-import { UnreachableError } from 'ilp-packet/dist/src/errors'
+import { IlpPrepare, IlpPacketHander, IlpReply, Errors } from 'ilp-packet'
+import { EventEmitter } from 'events'
+const { UnreachableError } = Errors
 const log = createLogger('plugin-account-service')
 
-export class AccountServiceBase implements AccountService {
+export class AccountServiceBase extends EventEmitter implements AccountService {
 
   protected _id: string
   protected _info: AccountInfo
-  protected _connectHandler?: () => void
-  protected _disconnectHandler?: () => void
   protected _outgoingIlpPacketHandler?: IlpPacketHander
   protected _outgoingMoneyHandler?: MoneyHandler
   protected _incomingIlpPacketHandler: IlpPacketHander
@@ -21,6 +20,7 @@ export class AccountServiceBase implements AccountService {
   private _started: boolean = false
 
   constructor (accountId: string, accountInfo: AccountInfo, middlewares: string[]) {
+    super()
     this._id = accountId
     this._info = accountInfo
     if (middlewares.length > 0) {
@@ -39,7 +39,7 @@ export class AccountServiceBase implements AccountService {
     return this._id
   }
 
-  getInfo () {
+  public get info () {
     return this._info
   }
 
@@ -97,34 +97,6 @@ export class AccountServiceBase implements AccountService {
 
   isConnected (): boolean {
     throw new Error('isConnected must be implemented.')
-  }
-
-  registerConnectHandler (handler: () => void) {
-    if (this._connectHandler) {
-      log.error('Connect handler already exists for account: ' + this._id)
-      throw new Error('Connect handler already exists for account: ' + this._id)
-    }
-    this._connectHandler = handler
-  }
-
-  deregisterConnectHandler () {
-    if (this._connectHandler) {
-      this._connectHandler = undefined
-    }
-  }
-
-  registerDisconnectHandler (handler: () => void) {
-    if (this._disconnectHandler) {
-      log.error('Disconnect handler already exists for account: ' + this._id)
-      throw new Error('Disconnect handler already exists for account: ' + this._id)
-    }
-    this._disconnectHandler = handler
-  }
-
-  deregisterDisconnectHandler () {
-    if (this._disconnectHandler) {
-      this._disconnectHandler = undefined
-    }
   }
 
   registerIlpPacketHandler (handler: IlpPacketHander) {

@@ -13,8 +13,8 @@ export default class PluginAccountService extends AccountServiceBase implements 
   constructor (accountId: string, accountInfo: AccountInfo, plugin: PluginInstance, middlewares: string[]) {
     super(accountId, accountInfo, middlewares)
     this._plugin = plugin
-    this._plugin.on('connect', this._pluginConnect.bind(this))
-    this._plugin.on('disconnect', this._pluginDisconnect.bind(this))
+    this._plugin.on('connect', this.emit.bind(this, 'connect'))
+    this._plugin.on('disconnect', this.emit.bind(this, 'disconnect'))
 
     this._outgoingIlpPacketHandler = async (packet) => {
       return deserializeIlpPacket(await this._plugin.sendData(serializeIlpPrepare(packet))).data as IlpReply
@@ -51,14 +51,6 @@ export default class PluginAccountService extends AccountServiceBase implements 
 
   isConnected () {
     return this._plugin.isConnected()
-  }
-
-  protected async _pluginConnect () {
-    if (this._connectHandler) return this._connectHandler()
-  }
-
-  protected async _pluginDisconnect () {
-    if (this._disconnectHandler) return this._disconnectHandler()
   }
 
   public getPlugin () {

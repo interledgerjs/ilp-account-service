@@ -3,13 +3,12 @@ import { IlpPrepare, IlpReply, IlpPacketHander } from 'ilp-packet'
 
 export interface AccountService {
   readonly id: string,
-  getInfo (): AccountInfo,
+  readonly info: AccountInfo,
   startup (): Promise<void>,
   shutdown (): Promise<void>,
-  registerConnectHandler (handler: () => void): void,
-  deregisterConnectHandler (): void,
-  registerDisconnectHandler (handler: () => void): void,
-  deregisterDisconnectHandler (): void,
+  on (event: 'connect' | 'disconnect', listener: () => void): this
+  once (event: 'connect' | 'disconnect', listener: () => void): this
+  removeListener (event: 'connect' | 'disconnect', listener: () => void): this
 
   /**
    * Register a handler for ILP prepare packets coming from the account entity

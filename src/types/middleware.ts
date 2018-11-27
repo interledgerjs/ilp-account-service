@@ -46,6 +46,7 @@ export interface Pipelines {
   readonly incomingMoney: Pipeline<string, void>,
   readonly outgoingData: Pipeline<IlpPrepare, IlpReply>
   readonly outgoingMoney: Pipeline<string, void>
+  readonly shutdown: Pipeline<void, void>
 }
 
 export interface Middleware {
