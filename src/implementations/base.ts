@@ -100,10 +100,6 @@ export class AccountServiceBase extends EventEmitter implements AccountService {
   }
 
   registerIlpPacketHandler (handler: IlpPacketHander) {
-    if (this._started) {
-      log.error('Can\'t register handler after sertvice has started.')
-      throw new Error('Can\'t register handler after sertvice has started.')
-    }
     this._incomingIlpPacketHandler = handler
   }
 
@@ -114,10 +110,6 @@ export class AccountServiceBase extends EventEmitter implements AccountService {
   }
 
   registerMoneyHandler (handler: MoneyHandler) {
-    if (this._started) {
-      log.error('Can\'t register handler after sertvice has started.')
-      throw new Error('Can\'t register handler after sertvice has started.')
-    }
     this._incomingMoneyHandler = handler
   }
 
