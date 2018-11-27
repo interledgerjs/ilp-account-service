@@ -70,5 +70,5 @@ if (!module.parent) {
       }
     })
   }
-  run()
+  run().catch(e => console.error)
 }

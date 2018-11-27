@@ -14,7 +14,7 @@ export default class PluginAccountServiceProvider implements AccountServiceProvi
   protected _middleware: string[]
   protected _isStarted: boolean = false
   protected _createStore: (namespace: string) => StoreInstance
-  protected _createLogger: (namespace: string) => Logger
+  protected _createLogger: (namespace: string) => {}
 
   constructor (options: {middleware: string[]}, services: AccountServiceProviderServices) {
     this._configuredAccounts = services.accounts || {}

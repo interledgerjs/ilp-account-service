@@ -1,7 +1,7 @@
 import PluginAccountService from './implementations/plugin'
-import { AccountInfo } from 'ilp-transport-grpc/dist/lib/account'
 import { PluginInstance } from './types/plugin'
 import { AccountService } from './types/account-service'
+import { AccountInfo } from './types/accounts'
 import { default as createLogger } from 'ilp-logger'
 const log = createLogger('app')
 
