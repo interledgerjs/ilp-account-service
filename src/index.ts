@@ -3,7 +3,10 @@
 export { AccountInfo, AccountEntry } from './types/accounts'
 export { AccountService } from './types/account-service'
 export { AccountServiceBase } from './implementations/base'
-export { AccountServiceProvider, AccountServiceProviderOptions } from './types/account-service-provider'
+export {
+  AccountServiceProvider,
+  AccountServiceProviderServices,
+  AccountServiceProviderDefinition } from './types/account-service-provider'
 export { default as PluginAccountService } from './implementations/plugin'
 export { default as PluginAccountServiceProvider } from './providers/plugin'
 
@@ -20,8 +23,8 @@ if (!module.parent) {
   const accountId = process.env.ACCOUNT_ID
   const accountInfo = JSON.parse(process.env.ACCOUNT_INFO || '{}') as AccountInfo
   const opts = Object.assign({}, accountInfo.options)
-  const Plugin = require(accountInfo.plugin || 'ilp-plugin-btp')
-  const plugin = new Plugin(opts, {
+  const pluginModule = accountInfo.plugin ? String(accountInfo.plugin) : 'ilp-plugin-btp'
+  const plugin = new (require(pluginModule))(opts, {
     log: createLogger('ilp-account-service[plugin]'),
     store: createStore()
   })

@@ -42,6 +42,7 @@ export default class MiddlewareManager {
   protected startupPipeline?: VoidHandler
   protected outgoingIlpPacketPipeline?: IlpPacketHander
   protected outgoingMoneyPipeline?: MoneyHandler
+  protected shutdownPipeline?: VoidHandler
   protected middlewares: { [key: string]: Middleware }
   protected getInfo: () => AccountEntry
   protected stats: Stats
@@ -51,7 +52,7 @@ export default class MiddlewareManager {
     const disabledMiddlewareConfig: string[] = disabledMiddleWare || []
 
     this.middlewares = {}
-    this.getInfo = () => { return { id: accountService.id, info: accountService.getInfo() } }
+    this.getInfo = () => { return accountService }
     this.stats = new Stats(accountService.id)
 
     for (const name of Object.keys(BUILTIN_MIDDLEWARES)) {
@@ -77,12 +78,11 @@ export default class MiddlewareManager {
    * This should be called after the plugins are connected
    */
   async startup () {
-    const handler = this.startupPipeline
-    if (handler) await handler(undefined)
+    if (this.startupPipeline) await this.startupPipeline(undefined)
   }
 
   async shutdown () {
-    // TODO - Teardown pipeline
+    if (this.shutdownPipeline) await this.shutdownPipeline(undefined)
   }
 
   public async setupHandlers (handlers: {
@@ -102,7 +102,8 @@ export default class MiddlewareManager {
       incomingData: new MiddlewarePipeline<IlpPrepare, IlpReply>(),
       incomingMoney: new MiddlewarePipeline<string, void>(),
       outgoingData: new MiddlewarePipeline<IlpPrepare, IlpReply>(),
-      outgoingMoney: new MiddlewarePipeline<string, void>()
+      outgoingMoney: new MiddlewarePipeline<string, void>(),
+      shutdown: new MiddlewarePipeline<void, void>()
     }
     for (const middlewareName of Object.keys(this.middlewares)) {
       const middleware = this.middlewares[middlewareName]
@@ -126,6 +127,9 @@ export default class MiddlewareManager {
     // Generate incoming middleware (ILP Prepare from plugin to connector)
     const incomingIlpPacketPipeline = this.createHandler(pipelines.incomingData, incomingIlpPacket)
     const incomingMoneyPipeline = this.createHandler(pipelines.incomingMoney, incomingMoney)
+
+    // Generate shutdown middleware
+    this.shutdownPipeline = this.createHandler(pipelines.shutdown, async () => { return })
 
     return { incomingIlpPacketPipeline, incomingMoneyPipeline }
   }
